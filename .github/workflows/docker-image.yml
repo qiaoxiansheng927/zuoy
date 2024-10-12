@@ -51,7 +51,7 @@ jobs:
           # 如果需要的话，创建存储目录
           mkdir -p  opt/web-app
           # 复制 tarball 到远程服务器
-          cp web-app.tar opt/web-app/web-app.tar
+          cp web-app.tar opt/web-app
           # 加载 Docker 镜像
           docker load -i opt/web-app/web-app.tar
           # 停止现有容器
