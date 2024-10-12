@@ -33,11 +33,7 @@ jobs:
         name: web-app-tar
         path: web-app.tar
 
-    - name: Download Artifact
-      uses: actions/download-artifact@v3
-      with:
-        name: web-app-tar
-        path: ./web-app.tar
+
 
     - name: Deploy to Server
       uses: appleboy/ssh-action@master
