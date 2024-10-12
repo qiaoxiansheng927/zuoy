@@ -1,12 +1,16 @@
-name: Deploy Web App
+name: Deploy Django Project Directly
 
 on:
   push:
-    branches: [ main ]  # 触发条件：当代码推送到 main 分支时
+    branches: [ main ]  # 当代码推送到 main 分支时触发
   pull_request:
-    branches: [ main ]  # 触发条件：当有拉取请求合并到 main 分支时
-  workflow_dispatch:
-  
+    branches: [ main ]  # 当有拉取请求合并到 main 分支时触发
+
+env:
+  SERVER_HOST: ${{ secrets.SERVER_HOST }}
+  SERVER_USERNAME: ${{ secrets.SERVER_USERNAME }}
+  SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -17,37 +21,44 @@ jobs:
 
     - name: Build Docker Image
       run: |
-        docker build -t web-app .
-
-    - name: Start ngrok Tunnel
-      id: start-ngrok
+        docker build -t django-web-app .
+    
+    - name: Export Docker Image as Tarball
       run: |
-        # 下载 ngrok 并解压
-        wget https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip
-        unzip ngrok-stable-linux-amd64.zip
-        # 启动 ngrok 并绑定到容器的端口
-        ./ngrok http 8000 &
-        # 等待 ngrok 启动并获取 URL
-        sleep 5
-        export TUNNEL_URL=$(curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url')
-        echo "TUNNEL_URL=$TUNNEL_URL" >> $GITHUB_ENV
-        echo "Service is available at $TUNNEL_URL"
+        docker save -o web-app.tar django-web-app
 
-    - name: Run Docker Image for Testing
-      run: |
-        docker run -d --name web-app -p 8000:8000 web-app
-
-    - name: Access Service via ngrok
-      run: |
-        # 测试 URL 是否可用
-        curl ${{ env.TUNNEL_URL }}
-
-    - name: Export Docker Image
-      run: |
-        docker save -o web-app.tar web-app
-
-    - name: Upload Docker Image Tarball
+    - name: Upload Docker Image Tarball as Artifact
       uses: actions/upload-artifact@v3
       with:
         name: web-app-tar
         path: web-app.tar
+
+    - name: Download Docker Image Tarball from Artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: web-app-tar
+        path: .
+
+    - name: Deploy to Server
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ env.SERVER_HOST }}
+        username: ${{ env.SERVER_USERNAME }}
+        password: ${{ env.SERVER_PASSWORD }}
+        port: 22
+        envs: SERVER_HOST,SERVER_USERNAME,SERVER_PASSWORD
+        script: |
+          # 如果需要的话，创建存储目录
+          mkdir -p /opt/web-app
+          # 复制 tarball 到远程服务器
+          cp web-app.tar /opt/web-app/web-app.tar
+          # 加载 Docker 镜像
+          docker load -i /opt/web-app/web-app.tar
+          # 停止现有容器
+          docker stop web-app || true
+          # 删除现有容器
+          docker rm web-app || true
+          # 删除悬挂的镜像
+          docker rmi $(docker images -f "dangling=true" -q) || true
+          # 运行新的容器
+          docker run -d --name web-app -p 8000:8000 django-web-app
