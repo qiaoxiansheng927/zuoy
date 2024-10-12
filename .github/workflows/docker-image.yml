@@ -49,6 +49,7 @@ jobs:
         envs: SERVER_HOST,SERVER_USERNAME,SERVER_PASSWORD
         script: |
           # 如果需要的话，创建存储目录
+          su 
           mkdir -p /opt/web-app
           # 复制 tarball 到远程服务器
           cp web-app.tar /opt/web-app/web-app.tar
