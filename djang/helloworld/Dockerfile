@@ -9,4 +9,4 @@ RUN apt update && apt install  -y \
 RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 RUN pip install --no-cache-dir -r requirements.txt
 EXPOSE  8000
-CMD python3 manage.py runserver 0.0.0.0:8000
+CMD python3  djang/helloworld/manage.py runserver 0.0.0.0:8000
