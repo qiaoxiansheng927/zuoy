@@ -1,10 +1,10 @@
-name: Deploy Web App
+name: Deploy Django Project Directly
 
 on:
   push:
-    branches: [ main ]  # 触发条件：当代码推送到 main 分支时
+    branches: [ main ]  # 当代码推送到 main 分支时触发
   pull_request:
-    branches: [ main ]  # 触发条件：当有拉取请求合并到 main 分支时
+    branches: [ main ]  # 当有拉取请求合并到 main 分支时触发
 
 env:
   SERVER_HOST: ${{ secrets.SERVER_HOST }}
@@ -21,19 +21,22 @@ jobs:
 
     - name: Build Docker Image
       run: |
-        docker build -t web-app .
+        docker build -t django-web-app .
     
-    - name: Export Docker Image
+    - name: Export Docker Image as Tarball
       run: |
-        docker save -o web-app.tar web-app
-
-    - name: Upload Docker Image Tarball
+        docker save -o web-app.tar django-web-app
+    - name: Upload Docker Image Tarball as Artifact
       uses: actions/upload-artifact@v3
       with:
         name: web-app-tar
         path: web-app.tar
 
-
+    - name: Download Docker Image Tarball from Artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: web-app-tar
+        path: .
 
     - name: Deploy to Server
       uses: appleboy/ssh-action@master
@@ -44,16 +47,12 @@ jobs:
         port: 22
         envs: SERVER_HOST,SERVER_USERNAME,SERVER_PASSWORD
         script: |
-          # 创建一个目录来存放 tarball 文件
-          mkdir -p tmp/web-app-tar
-          # 复制 tarball 文件到远程服务器
-          scp -P 22 -r ./web-app.tar.tar.gz ${SERVER_USERNAME}@${SERVER_HOST}:tmp/web-app-tar/
-          # 进入 tarball 文件所在的目录
-          cd  tmp/web-app-tar
-          # 解压 tarball 文件
-          tar -xzf web-app.tar.tar.gz
+         
+          
+          # 复制 tarball 到远程服务器
+          cp web-app.tar opt/web-app
           # 加载 Docker 镜像
-          docker load < web-app.tar
+          docker load -i opt/web-app/web-app.tar
           # 停止现有容器
           docker stop web-app || true
           # 删除现有容器
@@ -61,4 +60,4 @@ jobs:
           # 删除悬挂的镜像
           docker rmi $(docker images -f "dangling=true" -q) || true
           # 运行新的容器
-          docker run -d --name web-app -p 8000:8000 web-app
+          docker run -d --name web-app -p 8000:8000 django-web-app
