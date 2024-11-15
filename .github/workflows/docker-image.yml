@@ -47,7 +47,7 @@ jobs:
         port: 22
         envs: SERVER_HOST,SERVER_USERNAME,SERVER_PASSWORD
         script: |
-         
+        
           
           # 复制 tarball 到远程服务器
           cp web-app.tar opt/web-app
